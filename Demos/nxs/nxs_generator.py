@@ -47,29 +47,49 @@ def main(args: argparse.Namespace):
     )
 
     with h5py.File(args.output_path, "w") as file:
-        file.attrs["default"] = "entry"
-        entry_group = file.create_group("entry")
+        entry_group = file.create_group("entry0000")
         entry_group.attrs["NX_class"] = "NXentry"
         entry_group.attrs["default"] = "data"
-        entry_group.attrs["NX_application"] = "NXtomo"
+        entry_group.attrs["definition"] = "NXtomo"
+        entry_group.attrs["version"] = 1.3
 
         instrument_group = entry_group.create_group("instrument")
+        instrument_group.attrs["NX_class"] = "NXinstrument"
         detector_group = instrument_group.create_group("detector")
-        detector_group.create_dataset(
-            "image_key", data=np.zeros_like(angles, dtype=np.int8)
-        )
+        detector_group.attrs["NX_class"] = "NXdetector"
+        image_key = np.zeros([angles_num], dtype=np.int8)
+        image_key_dataset = detector_group.create_dataset("image_key", data=image_key)
+        detector_group["image_key_control"] = image_key_dataset
+        detector_group["distance"] = 0.01
+        detector_group["distance"].attrs["units"] = "m"
+        detector_group["x_pixel_size"] = 0.000006
+        detector_group["x_pixel_size"].attrs["units"] = "m"
+        detector_group["y_pixel_size"] = 0.000006
+        detector_group["y_pixel_size"].attrs["units"] = "m"
+
+        beam_group = instrument_group.create_group("beam")
+        beam_group.attrs["NX_class"] = "NXbeam"
+        beam_group["incident_energy"] = 19.0
+        beam_group["incident_energy"].attrs["units"] = "keV"
 
         entry_group.create_dataset("definition", data="NXtomo")
         data_group = entry_group.create_group("data")
+        data_group.attrs["NX_class"] = "NXdata"
+        data_group.attrs["SILX_style/axis_scale_types"] = ["linear", "linear"]
         sinogram_dataset = data_group.create_dataset(
             "data", (angles_num, Vert_det, Horiz_det), sinogram_dtype
         )
-        data_group.create_dataset("rotation_angle", data=angles)
+        sinogram_dataset.attrs["interpretation"] = "image"
+        detector_group["data"] = sinogram_dataset
+        data_group.attrs["signal"] = "data"
 
-        file.create_dataset(args.output_path.name, data=[0, 0])
-
-        data_dims_group = file.create_group("data_dims")
-        data_dims_group.create_dataset("detector_x_y", data=[Horiz_det, Vert_det])
+        data_group.create_dataset(
+            "rotation_angle",
+            data=angles,
+        )
+        # Create hard link to the same rotation dataset
+        entry_group["sample/rotation_angle"] = data_group["rotation_angle"]
+        entry_group["sample"].attrs["NX_class"] = "NXsample"
 
         for i in range(chunk_count):
             chunk_start = i * chunk_size
