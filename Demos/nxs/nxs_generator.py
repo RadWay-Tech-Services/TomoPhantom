@@ -83,6 +83,17 @@ def main(args: argparse.Namespace):
         detector_group["data"] = sinogram_dataset
         data_group.attrs["signal"] = "data"
 
+        # Compatibility with TomoCuPy
+        exchange_group = file.create_group("exchange")
+        exchange_group["data"] = sinogram_dataset
+        exchange_group["theta"] = angles
+        exchange_group["data_white"] = (
+            np.ones((angles_num, Vert_det, Horiz_det), dtype=sinogram_dtype) * 32535
+        )
+        exchange_group["data_dark"] = np.ones(
+            (angles_num, Vert_det, Horiz_det), dtype=sinogram_dtype
+        )
+
         data_group.create_dataset(
             "rotation_angle",
             data=angles,
